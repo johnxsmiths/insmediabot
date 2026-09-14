@@ -125,6 +125,12 @@ func (b *Bot) handleTextMessage(ctx context.Context, msg *Message) error {
 	// Command routing
 	switch {
 	case strings.HasPrefix(text, "/start"):
+		parts := strings.Fields(text)
+		if len(parts) > 1 && strings.HasPrefix(parts[1], "dl_") {
+			shortcode := strings.TrimPrefix(parts[1], "dl_")
+			reconstructURL := "https://www.instagram.com/p/" + shortcode + "/"
+			return b.processInstagramDownload(ctx, chatID, userID, reconstructURL)
+		}
 		return b.sendStartMessage(ctx, chatID, userID)
 	case strings.HasPrefix(text, "/help"):
 		_, err := b.client.SendMessage(ctx, chatID, b.getHelpMessage(ctx, userID), b.getHelpKeyboard())
@@ -454,7 +460,7 @@ func (b *Bot) getAboutMessage(ctx context.Context, userID int64) string {
 	return fmt.Sprintf(
 		"🤖 <b>About %s</b>\n\n"+
 			"<blockquote>⚡ <b>Bot:</b> %s (@%s)\n"+
-			"👨‍💻 <b>Developer:</b> <a href=\"https://github.com/mrabhi2k3\">mrabhi2k3</a>\n"+
+			"👨‍💻 <b>Developer:</b> <a href=\"github.com/mrabhi2k3\">MrAbhi2k3</a>\n"+
 			"📢 <b>Channel:</b> @TeleRoidGroup\n"+
 			"💬 <b>Support:</b> @TeleRoid14\n"+
 			"🛠 <b>Language:</b> Golang</blockquote>\n\n"+
@@ -484,12 +490,10 @@ func (b *Bot) getAboutKeyboard() *InlineKeyboardMarkup {
 	return &InlineKeyboardMarkup{
 		InlineKeyboard: [][]InlineKeyboardButton{
 			{
-				{Text: "📢 Updates Channel", URL: "https://t.me/teleroidgroup"},
-				{Text: "💬 Support Group", URL: "https://t.me/teleroid14"},
-			},
-			{
+				{Text: "📢 Updates Channel", URL: "https://t.me/moviesflixers_dl"},
 				{Text: "👨‍💻 Developer", URL: "https://github.com/mrabhi2k3"},
 			},
+
 			{
 				{Text: "🔙 Back to Menu", CallbackData: "action_start"},
 			},
