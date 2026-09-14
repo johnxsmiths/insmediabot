@@ -90,10 +90,11 @@ type Message struct {
 
 // CallbackQuery represents an incoming callback query from an inline keyboard button.
 type CallbackQuery struct {
-	ID      string   `json:"id"`
-	From    User     `json:"from"`
-	Message *Message `json:"message,omitempty"`
-	Data    string   `json:"data"`
+	ID              string   `json:"id"`
+	From            User     `json:"from"`
+	Message         *Message `json:"message,omitempty"`
+	InlineMessageID string   `json:"inline_message_id,omitempty"`
+	Data            string   `json:"data"`
 }
 
 // InlineKeyboardMarkup represents inline keyboard with rows of buttons.

@@ -303,23 +303,38 @@ func parseChatID(str string) int64 {
 
 func (b *Bot) handleCallbackQuery(ctx context.Context, cb *CallbackQuery) error {
 	userID := cb.From.ID
-	chatID := cb.Message.Chat.ID
-	messageID := cb.Message.MessageID
+	var chatID int64
+	var messageID int64
+	if cb.Message != nil {
+		chatID = cb.Message.Chat.ID
+		messageID = cb.Message.MessageID
+	}
 	data := cb.Data
 
 	_ = b.client.AnswerCallbackQuery(ctx, cb.ID, "")
 
-	// 1. Language update clicked: Edit SAME message in-place
+	// 1. Inline Download Button Clicked: Resolve and send media to chat
+	if strings.HasPrefix(data, "inlinedl:") {
+		targetURL := strings.TrimPrefix(data, "inlinedl:")
+		return b.handleInlineDownloadTrigger(ctx, cb, targetURL)
+	}
+
+	// 2. Language update clicked: Edit SAME message in-place
 	if strings.HasPrefix(data, "lang:") {
 		newLang := strings.TrimPrefix(data, "lang:")
 		i18n.GlobalUserLangStore.Set(userID, newLang)
 		t := i18n.ForUser(userID)
-		return b.client.EditMessageText(ctx, chatID, messageID, t.LangUpdated+"\n\n"+t.StartMessage, b.getMainKeyboard(userID))
+		if cb.Message != nil {
+			return b.client.EditMessageText(ctx, chatID, messageID, t.LangUpdated+"\n\n"+t.StartMessage, b.getMainKeyboard(userID))
+		}
+		return nil
 	}
 
 	if data == "verify_forcesub" {
 		if b.checkForceSub(ctx, userID) {
-			_ = b.client.DeleteMessage(ctx, chatID, messageID)
+			if cb.Message != nil {
+				_ = b.client.DeleteMessage(ctx, chatID, messageID)
+			}
 			_, err := b.client.SendMessage(ctx, chatID, "✅ <b>Verification Successful!</b>\nYou can now send any Instagram link to download.", b.getMainKeyboard(userID))
 			return err
 		}
@@ -436,4 +451,85 @@ func (b *Bot) getBackKeyboard() *InlineKeyboardMarkup {
 			},
 		},
 	}
+}
+
+// handleInlineDownloadTrigger handles the user clicking the inline download card in any chat
+func (b *Bot) handleInlineDownloadTrigger(ctx context.Context, cb *CallbackQuery, targetURL string) error {
+	userID := cb.From.ID
+	t := i18n.ForUser(userID)
+
+	// Update button state to indicate downloading
+	statusText := fmt.Sprintf("⬇️ <b>Resolving Instagram Media...</b>\n\n🔗 <code>%s</code>\n\n⚡ <i>Downloading directly to this chat...</i>", targetURL)
+	loadingKB := &InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{{Text: "⏳ Downloading...", CallbackData: "noop"}},
+		},
+	}
+
+	if cb.InlineMessageID != "" {
+		_ = b.client.EditInlineMessageText(ctx, cb.InlineMessageID, statusText, loadingKB)
+	} else if cb.Message != nil {
+		_ = b.client.EditMessageText(ctx, cb.Message.Chat.ID, cb.Message.MessageID, statusText, loadingKB)
+	}
+
+	// Resolve media
+	mediaRes, err := b.resolver.Resolve(ctx, targetURL)
+	if err != nil || mediaRes == nil || len(mediaRes.Items) == 0 {
+		failText := fmt.Sprintf("%s\n\n🔗 <a href=\"%s\">Open Instagram Link</a>", t.DownloadError, targetURL)
+		failKB := &InlineKeyboardMarkup{
+			InlineKeyboard: [][]InlineKeyboardButton{
+				{{Text: "🔗 Direct Link", URL: targetURL}},
+			},
+		}
+		if cb.InlineMessageID != "" {
+			return b.client.EditInlineMessageText(ctx, cb.InlineMessageID, failText, failKB)
+		} else if cb.Message != nil {
+			return b.client.EditMessageText(ctx, cb.Message.Chat.ID, cb.Message.MessageID, failText, failKB)
+		}
+		return nil
+	}
+
+	// Determine destination chat ID
+	var targetChatID int64
+	if cb.Message != nil {
+		targetChatID = cb.Message.Chat.ID
+	} else {
+		// When triggered in inline mode without chat access, direct to user private chat
+		targetChatID = userID
+	}
+
+	// Deliver the media
+	uploadErr := b.deliverMedia(ctx, targetChatID, userID, mediaRes)
+	if uploadErr != nil {
+		failText := fmt.Sprintf("%s\n\n🔗 <a href=\"%s\">Open Instagram Link</a>", t.UploadFallback, targetURL)
+		if cb.InlineMessageID != "" {
+			return b.client.EditInlineMessageText(ctx, cb.InlineMessageID, failText, nil)
+		}
+		return uploadErr
+	}
+
+	// Clean up or finalize the inline card
+	doneText := fmt.Sprintf("✅ <b>Media Delivered Successfully!</b>\n\n🔗 <a href=\"%s\">Instagram Post</a>", targetURL)
+	doneKB := &InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{{Text: "🔗 Instagram Link", URL: targetURL}},
+		},
+	}
+
+	if cb.InlineMessageID != "" {
+		return b.client.EditInlineMessageText(ctx, cb.InlineMessageID, doneText, doneKB)
+	} else if cb.Message != nil {
+		_ = b.client.DeleteMessage(ctx, cb.Message.Chat.ID, cb.Message.MessageID)
+	}
+
+	// Mirror to log channel if enabled
+	if b.cfg.LogChannelID != "" {
+		go func() {
+			logCtx, logCancel := context.WithTimeout(context.Background(), 40*time.Second)
+			defer logCancel()
+			_ = b.forwardToLogChannel(logCtx, userID, targetURL, mediaRes)
+		}()
+	}
+
+	return nil
 }

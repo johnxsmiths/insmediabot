@@ -71,6 +71,24 @@ func (c *Client) EditMessageText(ctx context.Context, chatID int64, messageID in
 	return err
 }
 
+// EditInlineMessageText edits an inline message text sent via inline query.
+func (c *Client) EditInlineMessageText(ctx context.Context, inlineMessageID string, text string, replyMarkup *InlineKeyboardMarkup) error {
+	payload := map[string]interface{}{
+		"inline_message_id": inlineMessageID,
+		"text":              text,
+		"parse_mode":        "HTML",
+	}
+	if replyMarkup != nil {
+		payload["reply_markup"] = replyMarkup
+	}
+
+	_, err := c.postJSON(ctx, "/editMessageText", payload)
+	if err != nil && strings.Contains(err.Error(), "message is not modified") {
+		return nil
+	}
+	return err
+}
+
 // GetMe returns current bot user profile (to dynamically fetch bot username).
 func (c *Client) GetMe(ctx context.Context) (*User, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/getMe", nil)
