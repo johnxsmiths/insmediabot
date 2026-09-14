@@ -87,7 +87,12 @@ func (b *Bot) ProcessUpdate(ctx context.Context, update *Update) error {
 		return b.handleCallbackQuery(ctx, update.CallbackQuery)
 	}
 
-	// 2. Handle Text Messages
+	// 2. Handle Inline Mode Queries (@botusername <url>)
+	if update.InlineQuery != nil {
+		return b.handleInlineQuery(ctx, update.InlineQuery)
+	}
+
+	// 3. Handle Text Messages
 	if update.Message != nil && update.Message.Text != "" {
 		return b.handleTextMessage(ctx, update.Message)
 	}

@@ -45,7 +45,11 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string, rep
 	if err != nil {
 		return 0, err
 	}
-	return res.Result.MessageID, nil
+	var msgResult struct {
+		MessageID int64 `json:"message_id"`
+	}
+	_ = json.Unmarshal(res.Result, &msgResult)
+	return msgResult.MessageID, nil
 }
 
 // EditMessageText edits existing message text.
@@ -149,6 +153,18 @@ func (c *Client) AnswerCallbackQuery(ctx context.Context, callbackID string, tex
 		payload["text"] = text
 	}
 	_, err := c.postJSON(ctx, "/answerCallbackQuery", payload)
+	return err
+}
+
+// AnswerInlineQuery sends answers to an inline query.
+func (c *Client) AnswerInlineQuery(ctx context.Context, inlineQueryID string, results []interface{}, cacheTime int) error {
+	payload := map[string]interface{}{
+		"inline_query_id": inlineQueryID,
+		"results":         results,
+		"cache_time":      cacheTime,
+		"is_personal":     true,
+	}
+	_, err := c.postJSON(ctx, "/answerInlineQuery", payload)
 	return err
 }
 
