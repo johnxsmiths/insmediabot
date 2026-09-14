@@ -26,6 +26,7 @@ type Bot struct {
 	rateLimiter *ratelimit.Limiter
 
 	botUsername     string
+	botName         string
 	botUsernameOnce sync.Once
 }
 
@@ -47,18 +48,32 @@ func NewBot(cfg *config.Config) *Bot {
 	}
 }
 
-// getBotUsername dynamically retrieves the bot username from Telegram API.
-func (b *Bot) getBotUsername(ctx context.Context) string {
+func (b *Bot) getBotInfo(ctx context.Context) (name string, username string) {
 	b.botUsernameOnce.Do(func() {
-		if me, err := b.client.GetMe(ctx); err == nil && me != nil && me.Username != "" {
-			b.botUsername = me.Username
-			log.Printf("[Bot] Resolved bot username: @%s", b.botUsername)
+		if me, err := b.client.GetMe(ctx); err == nil && me != nil {
+			if me.FirstName != "" {
+				b.botName = me.FirstName
+			}
+			if me.Username != "" {
+				b.botUsername = me.Username
+			}
+			log.Printf("[Bot] Resolved bot identity: %s (@%s)", b.botName, b.botUsername)
 		}
 	})
-	if b.botUsername != "" {
-		return "@" + b.botUsername
+	name = b.botName
+	if name == "" {
+		name = "Instagram Downloader"
 	}
-	return "@InstagramDownloader"
+	username = b.botUsername
+	if username == "" {
+		username = "InstagramDownloader"
+	}
+	return name, username
+}
+
+func (b *Bot) getBotUsername(ctx context.Context) string {
+	_, username := b.getBotInfo(ctx)
+	return "@" + username
 }
 
 // checkForceSub checks if user is subscribed to the required channel.
@@ -112,10 +127,10 @@ func (b *Bot) handleTextMessage(ctx context.Context, msg *Message) error {
 	case strings.HasPrefix(text, "/start"):
 		return b.sendStartMessage(ctx, chatID, userID)
 	case strings.HasPrefix(text, "/help"):
-		_, err := b.client.SendMessage(ctx, chatID, t.HelpMessage, b.getMainKeyboard(userID))
+		_, err := b.client.SendMessage(ctx, chatID, b.getHelpMessage(ctx, userID), b.getHelpKeyboard())
 		return err
 	case strings.HasPrefix(text, "/about"):
-		_, err := b.client.SendMessage(ctx, chatID, t.AboutMessage, b.getMainKeyboard(userID))
+		_, err := b.client.SendMessage(ctx, chatID, b.getAboutMessage(ctx, userID), b.getAboutKeyboard())
 		return err
 	case strings.HasPrefix(text, "/lang") || strings.HasPrefix(text, "/language"):
 		return b.sendLanguageSelectorInNewMessage(ctx, chatID, userID)
@@ -339,16 +354,12 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, cb *CallbackQuery) error 
 	t := i18n.ForUser(userID)
 	switch data {
 	case "action_help":
-		// Edit the SAME message in-place
-		return b.client.EditMessageText(ctx, chatID, messageID, t.HelpMessage, b.getBackKeyboard())
+		return b.client.EditMessageText(ctx, chatID, messageID, b.getHelpMessage(ctx, userID), b.getHelpKeyboard())
 	case "action_about":
-		// Edit the SAME message in-place
-		return b.client.EditMessageText(ctx, chatID, messageID, t.AboutMessage, b.getBackKeyboard())
+		return b.client.EditMessageText(ctx, chatID, messageID, b.getAboutMessage(ctx, userID), b.getAboutKeyboard())
 	case "action_lang":
-		// Edit the SAME message in-place
 		return b.editLanguageSelector(ctx, chatID, messageID, userID)
 	case "action_start":
-		// Edit the SAME message in-place
 		return b.client.EditMessageText(ctx, chatID, messageID, t.StartMessage, b.getMainKeyboard(userID))
 	}
 
@@ -382,7 +393,6 @@ func (b *Bot) sendForceSubMessage(ctx context.Context, chatID, userID int64) err
 	return err
 }
 
-// editLanguageSelector renders language choices inside the SAME message
 func (b *Bot) editLanguageSelector(ctx context.Context, chatID, messageID, userID int64) error {
 	t := i18n.ForUser(userID)
 	kb := b.buildLanguageKeyboard()
@@ -432,6 +442,70 @@ func (b *Bot) getMainKeyboard(userID int64) *InlineKeyboardMarkup {
 			},
 			{
 				{Text: t.BtnLanguage, CallbackData: "action_lang"},
+			},
+		},
+	}
+}
+
+func (b *Bot) getAboutMessage(ctx context.Context, userID int64) string {
+	name, username := b.getBotInfo(ctx)
+	_ = userID
+
+	return fmt.Sprintf(
+		"🤖 <b>About %s</b>\n\n"+
+			"<blockquote>⚡ <b>Bot:</b> %s (@%s)\n"+
+			"👨‍💻 <b>Developer:</b> <a href=\"https://github.com/mrabhi2k3\">mrabhi2k3</a>\n"+
+			"📢 <b>Channel:</b> @TeleRoidGroup\n"+
+			"💬 <b>Support:</b> @TeleRoid14\n"+
+			"🛠 <b>Language:</b> Golang</blockquote>\n\n"+
+			"✨ <i>Ultra-fast, Instagram downloader Reels, Posts, and Albums in original HD quality!</i>",
+		name, name, username,
+	)
+}
+
+func (b *Bot) getHelpMessage(ctx context.Context, userID int64) string {
+	_ = userID
+	_, username := b.getBotInfo(ctx)
+
+	return fmt.Sprintf(
+		"📖 <b>How to Use @%s:</b>\n\n"+
+			"1️⃣ <b>Direct Chat:</b>\n"+
+			"• Copy any link from Instagram (Reel, Video, Photo, Album).\n"+
+			"• Send the link directly here to get media instantly!\n\n"+
+			"2️⃣ <b>Inline Mode (Any Chat/Group):</b>\n"+
+			"• Type <code>@%s &lt;Instagram URL&gt;</code> in any chat.\n"+
+			"• Tap the preview to send the media directly!\n\n"+
+			"💬 <i>Need help or have suggestions? Join our support group below!</i>",
+		username, username,
+	)
+}
+
+func (b *Bot) getAboutKeyboard() *InlineKeyboardMarkup {
+	return &InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{
+				{Text: "📢 Updates Channel", URL: "https://t.me/teleroidgroup"},
+				{Text: "💬 Support Group", URL: "https://t.me/teleroid14"},
+			},
+			{
+				{Text: "👨‍💻 Developer", URL: "https://github.com/mrabhi2k3"},
+			},
+			{
+				{Text: "🔙 Back to Menu", CallbackData: "action_start"},
+			},
+		},
+	}
+}
+
+func (b *Bot) getHelpKeyboard() *InlineKeyboardMarkup {
+	return &InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{
+				{Text: "📢 Channel", URL: "https://t.me/teleroidgroup"},
+				{Text: "💬 Support", URL: "https://t.me/teleroid14"},
+			},
+			{
+				{Text: "🔙 Back to Menu", CallbackData: "action_start"},
 			},
 		},
 	}
