@@ -12,12 +12,13 @@ type MediaResult struct {
 
 // MediaItem represents an individual video or image file extracted from the post.
 type MediaItem struct {
-	URL      string `json:"url"`
-	Type     string `json:"type"` // "video" or "image"
-	MIMEType string `json:"mime_type,omitempty"`
-	Filename string `json:"filename,omitempty"`
-	Size     int64  `json:"size,omitempty"`
-	Quality  string `json:"quality,omitempty"`
+	URL          string `json:"url"`
+	Type         string `json:"type"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	MIMEType     string `json:"mime_type,omitempty"`
+	Filename     string `json:"filename,omitempty"`
+	Size         int64  `json:"size,omitempty"`
+	Quality      string `json:"quality,omitempty"`
 }
 
 // Provider defines the interface for resolving Instagram media URLs.

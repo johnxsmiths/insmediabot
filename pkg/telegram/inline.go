@@ -107,13 +107,21 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 		}
 
 		itemTitle := fmt.Sprintf("Instagram %s %d", strings.Title(item.Type), idx+1)
+		thumb := item.ThumbnailURL
+		if thumb == "" {
+			if item.Type == "image" {
+				thumb = item.URL
+			} else {
+				thumb = igLogoURL // Fallback required by Telegram Bot API for videos
+			}
+		}
 
 		if item.Type == "image" {
 			results = append(results, InlineQueryResultPhoto{
 				Type:         "photo",
 				ID:           fmt.Sprintf("photo_%d", idx),
 				PhotoURL:     item.URL,
-				ThumbnailURL: item.URL,
+				ThumbnailURL: thumb,
 				Title:        itemTitle,
 				Caption:      caption,
 				ParseMode:    "HTML",
@@ -125,13 +133,14 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 			})
 		} else {
 			results = append(results, InlineQueryResultVideo{
-				Type:      "video",
-				ID:        fmt.Sprintf("video_%d", idx),
-				VideoURL:  item.URL,
-				MimeType:  "video/mp4",
-				Title:     itemTitle,
-				Caption:   caption,
-				ParseMode: "HTML",
+				Type:         "video",
+				ID:           fmt.Sprintf("video_%d", idx),
+				VideoURL:     item.URL,
+				MimeType:     "video/mp4",
+				ThumbnailURL: thumb,
+				Title:        itemTitle,
+				Caption:      caption,
+				ParseMode:    "HTML",
 				ReplyMarkup: &InlineKeyboardMarkup{
 					InlineKeyboard: [][]InlineKeyboardButton{
 						{{Text: "🔗 Instagram Link", URL: cleanURL}},

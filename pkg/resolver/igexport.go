@@ -85,10 +85,11 @@ func (p *IGExportProvider) Resolve(ctx context.Context, igURL string) (*MediaRes
 					mimeType = "image/jpeg"
 				}
 				items = append(items, MediaItem{
-					URL:      raw.URL,
-					Type:     itemType,
-					MIMEType: mimeType,
-					Filename: raw.Filename,
+					URL:          raw.URL,
+					Type:         itemType,
+					ThumbnailURL: raw.ThumbnailURL,
+					MIMEType:     mimeType,
+					Filename:     raw.Filename,
 				})
 			}
 		}
