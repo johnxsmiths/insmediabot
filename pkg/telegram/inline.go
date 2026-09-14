@@ -98,43 +98,9 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 		}()
 	}
 
-	// 6. Build direct media results
+	// 6. Build direct media results: show every image and video directly
 	var results []interface{}
 	caption := fmt.Sprintf("✨ Downloaded via %s", b.getBotUsername(ctx))
-
-	if len(mediaRes.Items) > 1 {
-		shortcode := resolver.ExtractShortcode(cleanURL)
-		deepLinkURL := fmt.Sprintf("https://t.me/%s?start=dl_%s", botUser, shortcode)
-
-		albumCard := InlineQueryResultArticle{
-			Type:         "article",
-			ID:           "album_all_" + shortcode,
-			Title:        fmt.Sprintf("📦 Send Full Album / Carousel (%d items)", len(mediaRes.Items)),
-			Description:  "Tap to get all images & videos delivered together as a full gallery",
-			ThumbnailURL: igLogoURL,
-			InputMessageContent: InputTextMessageContent{
-				MessageText: fmt.Sprintf(
-					"📸 <b>Instagram Carousel Album</b>\n\n"+
-						"<blockquote>📦 <b>Total Items:</b> %d\n"+
-						"🔗 <b>Source:</b> <a href=\"%s\">Instagram Post</a></blockquote>\n\n"+
-						"👉 <i>Click the button below to get all %d items delivered as a full album in your chat!</i>",
-					len(mediaRes.Items), cleanURL, len(mediaRes.Items),
-				),
-				ParseMode: "HTML",
-			},
-			ReplyMarkup: &InlineKeyboardMarkup{
-				InlineKeyboard: [][]InlineKeyboardButton{
-					{
-						{Text: fmt.Sprintf("🚀 Deliver Full Album (%d items)", len(mediaRes.Items)), URL: deepLinkURL},
-					},
-					{
-						{Text: "🔗 Instagram Link", URL: cleanURL},
-					},
-				},
-			},
-		}
-		results = append(results, albumCard)
-	}
 
 	for idx, item := range mediaRes.Items {
 		if idx >= 10 {
