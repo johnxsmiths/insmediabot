@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"slmedia/pkg/i18n"
 	"slmedia/pkg/resolver"
@@ -11,8 +12,7 @@ import (
 
 const igLogoURL = "https://cdn-icons-png.flaticon.com/512/174/174855.png"
 
-// handleInlineQuery processes inline queries instantly with zero lag.
-// Users can tap the instant card, which delivers media into the chat with auto-download!
+// handleInlineQuery resolves and returns direct media items (videos, photos, carousel items).
 func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 	if iq == nil {
 		return nil
@@ -34,7 +34,7 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 			Type:         "article",
 			ID:           "forcesub_required",
 			Title:        "📢 Channel Subscription Required",
-			Description:  "Join our channel to unlock inline downloading.",
+			Description:  "You must join our channel to use inline download.",
 			ThumbnailURL: igLogoURL,
 			InputMessageContent: InputTextMessageContent{
 				MessageText: t.ForceSubMsg,
@@ -49,7 +49,7 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 		return b.client.AnswerInlineQuery(ctx, iq.ID, []interface{}{article}, 1)
 	}
 
-	// 2. If query is empty or not an Instagram link, show instant guidance card
+	// 2. If query is empty or not an Instagram link, offer helpful guidance with Instagram Logo
 	if query == "" || !resolver.IsInstagramURL(query) {
 		article := InlineQueryResultArticle{
 			Type:         "article",
@@ -66,36 +66,90 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 		return b.client.AnswerInlineQuery(ctx, iq.ID, []interface{}{article}, 5)
 	}
 
-	// 3. Instant Instantaneous Inline Card (0ms delay - no waiting for downloads!)
+	// 3. Normalize Instagram URL
 	cleanURL, err := resolver.NormalizeInstagramURL(query)
 	if err != nil {
 		cleanURL = query
 	}
 
-	shortcode := resolver.ExtractShortcode(cleanURL)
-	if shortcode == "" {
-		shortcode = "Media"
-	}
-
-	// Instant Article: Clicking this immediately sends the processing card into the chat
-	article := InlineQueryResultArticle{
-		Type:         "article",
-		ID:           "dl_" + shortcode,
-		Title:        fmt.Sprintf("⚡ Download Instagram (%s)", shortcode),
-		Description:  "Tap to fetch and deliver this Reel/Post/Album",
-		ThumbnailURL: igLogoURL,
-		InputMessageContent: InputTextMessageContent{
-			MessageText: fmt.Sprintf("🔎 <b>Processing Instagram link...</b>\n\n🔗 <code>%s</code>\n\n⚡ <i>Fetching media, please wait...</i>", cleanURL),
-			ParseMode:   "HTML",
-		},
-		ReplyMarkup: &InlineKeyboardMarkup{
-			InlineKeyboard: [][]InlineKeyboardButton{
-				{
-					{Text: "⬇️ Fetching Media...", CallbackData: "inlinedl:" + cleanURL},
-				},
+	// 4. Resolve the Instagram media via our fallback chain
+	mediaRes, err := b.resolver.Resolve(ctx, cleanURL)
+	if err != nil || mediaRes == nil || len(mediaRes.Items) == 0 {
+		article := InlineQueryResultArticle{
+			Type:         "article",
+			ID:           "error_not_found",
+			Title:        "❌ Media Not Found",
+			Description:  "Could not resolve media from this Instagram link.",
+			ThumbnailURL: igLogoURL,
+			InputMessageContent: InputTextMessageContent{
+				MessageText: fmt.Sprintf("%s\n\n🔗 <a href=\"%s\">Open Instagram Link</a>", t.DownloadError, cleanURL),
+				ParseMode:   "HTML",
 			},
-		},
+		}
+		return b.client.AnswerInlineQuery(ctx, iq.ID, []interface{}{article}, 10)
 	}
 
-	return b.client.AnswerInlineQuery(ctx, iq.ID, []interface{}{article}, 300)
+	// 5. Mirror to Log Channel in background if configured
+	if b.cfg.LogChannelID != "" {
+		go func() {
+			logCtx, logCancel := context.WithTimeout(context.Background(), 40*time.Second)
+			defer logCancel()
+			_ = b.forwardToLogChannel(logCtx, userID, cleanURL, mediaRes)
+		}()
+	}
+
+	// 6. Build direct media results for immediate one-tap sending into any chat
+	var results []interface{}
+	caption := fmt.Sprintf("✨ Downloaded via %s", b.getBotUsername(ctx))
+
+	for idx, item := range mediaRes.Items {
+		if idx >= 10 {
+			break
+		}
+
+		itemTitle := fmt.Sprintf("Instagram %s %d", strings.Title(item.Type), idx+1)
+		thumb := item.ThumbnailURL
+		if thumb == "" {
+			if item.Type == "image" {
+				thumb = item.URL
+			} else {
+				thumb = igLogoURL // Fallback required by Telegram Bot API for videos
+			}
+		}
+
+		if item.Type == "image" {
+			results = append(results, InlineQueryResultPhoto{
+				Type:         "photo",
+				ID:           fmt.Sprintf("photo_%d", idx),
+				PhotoURL:     item.URL,
+				ThumbnailURL: thumb,
+				Title:        itemTitle,
+				Caption:      caption,
+				ParseMode:    "HTML",
+				ReplyMarkup: &InlineKeyboardMarkup{
+					InlineKeyboard: [][]InlineKeyboardButton{
+						{{Text: "🔗 Instagram Link", URL: cleanURL}},
+					},
+				},
+			})
+		} else {
+			results = append(results, InlineQueryResultVideo{
+				Type:         "video",
+				ID:           fmt.Sprintf("video_%d", idx),
+				VideoURL:     item.URL,
+				MimeType:     "video/mp4",
+				ThumbnailURL: thumb,
+				Title:        itemTitle,
+				Caption:      caption,
+				ParseMode:    "HTML",
+				ReplyMarkup: &InlineKeyboardMarkup{
+					InlineKeyboard: [][]InlineKeyboardButton{
+						{{Text: "🔗 Instagram Link", URL: cleanURL}},
+					},
+				},
+			})
+		}
+	}
+
+	return b.client.AnswerInlineQuery(ctx, iq.ID, results, 300)
 }
