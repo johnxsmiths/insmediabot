@@ -25,7 +25,7 @@ type InlineQueryResultVideo struct {
 	ID            string                `json:"id"`
 	VideoURL      string                `json:"video_url"`
 	MimeType      string                `json:"mime_type"`
-	ThumbnailURL  string                `json:"thumbnail_url"`
+	ThumbnailURL  string                `json:"thumbnail_url,omitempty"`
 	Title         string                `json:"title"`
 	Caption       string                `json:"caption,omitempty"`
 	ParseMode     string                `json:"parse_mode,omitempty"`
@@ -37,7 +37,7 @@ type InlineQueryResultPhoto struct {
 	Type         string                `json:"type"` // "photo"
 	ID           string                `json:"id"`
 	PhotoURL     string                `json:"photo_url"`
-	ThumbnailURL string                `json:"thumbnail_url"`
+	ThumbnailURL string                `json:"thumbnail_url,omitempty"`
 	Title        string                `json:"title,omitempty"`
 	Caption      string                `json:"caption,omitempty"`
 	ParseMode    string                `json:"parse_mode,omitempty"`
@@ -52,6 +52,7 @@ type InlineQueryResultArticle struct {
 	InputMessageContent InputTextMessageContent `json:"input_message_content"`
 	ReplyMarkup         *InlineKeyboardMarkup `json:"reply_markup,omitempty"`
 	Description         string                `json:"description,omitempty"`
+	ThumbnailURL        string                `json:"thumbnail_url,omitempty"`
 }
 
 // InputTextMessageContent represents the content of a text message to be sent as the result of an inline query.
