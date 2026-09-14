@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"slmedia/internal/config"
-	"slmedia/internal/i18n"
-	"slmedia/internal/media"
-	"slmedia/internal/ratelimit"
-	"slmedia/internal/resolver"
-	"slmedia/internal/storage"
+	"slmedia/pkg/config"
+	"slmedia/pkg/i18n"
+	"slmedia/pkg/media"
+	"slmedia/pkg/ratelimit"
+	"slmedia/pkg/resolver"
+	"slmedia/pkg/storage"
 )
 
 // Bot orchestrates the serverless webhook lifecycle.

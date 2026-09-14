@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"slmedia/internal/config"
+	"slmedia/pkg/config"
 )
 
 // Manager coordinates the provider fallback chain.

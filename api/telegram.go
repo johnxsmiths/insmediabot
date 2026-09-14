@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"slmedia/internal/config"
-	"slmedia/internal/telegram"
+	"slmedia/pkg/config"
+	"slmedia/pkg/telegram"
 )
 
 var (
