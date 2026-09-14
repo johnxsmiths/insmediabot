@@ -334,7 +334,12 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, cb *CallbackQuery) error 
 
 	_ = b.client.AnswerCallbackQuery(ctx, cb.ID, "")
 
-	// 1. Language update clicked: Edit SAME message in-place
+	// 1. Carousel Slider Button Clicked (◀️ Prev / Next ▶️)
+	if strings.HasPrefix(data, "slide:") {
+		return b.handleCarouselSlide(ctx, cb, data)
+	}
+
+	// 2. Language update clicked: Edit SAME message in-place
 	if strings.HasPrefix(data, "lang:") {
 		newLang := strings.TrimPrefix(data, "lang:")
 		i18n.GlobalUserLangStore.Set(userID, newLang)
@@ -523,4 +528,66 @@ func (b *Bot) getBackKeyboard() *InlineKeyboardMarkup {
 			},
 		},
 	}
+}
+
+// handleCarouselSlide flips through carousel items directly inside the chat using Prev / Next
+func (b *Bot) handleCarouselSlide(ctx context.Context, cb *CallbackQuery, data string) error {
+	// Format: slide:<shortcode>:<targetIdx>
+	parts := strings.Split(data, ":")
+	if len(parts) < 3 {
+		return nil
+	}
+
+	shortcode := parts[1]
+	var targetIdx int
+	_, _ = fmt.Sscanf(parts[2], "%d", &targetIdx)
+
+	reconstructURL := "https://www.instagram.com/p/" + shortcode + "/"
+	mediaRes, err := b.resolver.Resolve(ctx, reconstructURL)
+	if err != nil || mediaRes == nil || len(mediaRes.Items) == 0 {
+		return nil
+	}
+
+	total := len(mediaRes.Items)
+	if targetIdx < 0 || targetIdx >= total {
+		targetIdx = 0
+	}
+
+	item := mediaRes.Items[targetIdx]
+	mType := "photo"
+	if item.Type == "video" {
+		mType = "video"
+	}
+
+	caption := fmt.Sprintf("✨ Downloaded via %s", b.getBotUsername(ctx))
+	inputMedia := InputMedia{
+		Type:      mType,
+		Media:     item.URL,
+		Caption:   caption,
+		ParseMode: "HTML",
+	}
+
+	prevIdx := (targetIdx - 1 + total) % total
+	nextIdx := (targetIdx + 1) % total
+
+	sliderKB := &InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{
+				{Text: "◀️ Prev", CallbackData: fmt.Sprintf("slide:%s:%d", shortcode, prevIdx)},
+				{Text: fmt.Sprintf("%d/%d", targetIdx+1, total), CallbackData: "noop"},
+				{Text: "Next ▶️", CallbackData: fmt.Sprintf("slide:%s:%d", shortcode, nextIdx)},
+			},
+			{
+				{Text: "🔗 Instagram Link", URL: reconstructURL},
+			},
+		},
+	}
+
+	if cb.InlineMessageID != "" {
+		return b.client.EditInlineMessageMedia(ctx, cb.InlineMessageID, inputMedia, sliderKB)
+	} else if cb.Message != nil {
+		return b.client.EditMessageMedia(ctx, cb.Message.Chat.ID, cb.Message.MessageID, inputMedia, sliderKB)
+	}
+
+	return nil
 }

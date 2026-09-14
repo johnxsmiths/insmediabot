@@ -89,6 +89,41 @@ func (c *Client) EditInlineMessageText(ctx context.Context, inlineMessageID stri
 	return err
 }
 
+// EditMessageMedia edits an existing message's photo/video media.
+func (c *Client) EditMessageMedia(ctx context.Context, chatID int64, messageID int64, media InputMedia, replyMarkup *InlineKeyboardMarkup) error {
+	payload := map[string]interface{}{
+		"chat_id":    chatID,
+		"message_id": messageID,
+		"media":      media,
+	}
+	if replyMarkup != nil {
+		payload["reply_markup"] = replyMarkup
+	}
+
+	_, err := c.postJSON(ctx, "/editMessageMedia", payload)
+	if err != nil && strings.Contains(err.Error(), "message is not modified") {
+		return nil
+	}
+	return err
+}
+
+// EditInlineMessageMedia edits media of an inline message.
+func (c *Client) EditInlineMessageMedia(ctx context.Context, inlineMessageID string, media InputMedia, replyMarkup *InlineKeyboardMarkup) error {
+	payload := map[string]interface{}{
+		"inline_message_id": inlineMessageID,
+		"media":             media,
+	}
+	if replyMarkup != nil {
+		payload["reply_markup"] = replyMarkup
+	}
+
+	_, err := c.postJSON(ctx, "/editMessageMedia", payload)
+	if err != nil && strings.Contains(err.Error(), "message is not modified") {
+		return nil
+	}
+	return err
+}
+
 // GetMe returns current bot user profile (to dynamically fetch bot username).
 func (c *Client) GetMe(ctx context.Context) (*User, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/getMe", nil)

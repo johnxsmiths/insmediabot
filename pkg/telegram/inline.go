@@ -117,6 +117,36 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 			}
 		}
 
+		var replyMarkup *InlineKeyboardMarkup
+
+		if len(mediaRes.Items) > 1 {
+			shortcode := resolver.ExtractShortcode(cleanURL)
+			total := len(mediaRes.Items)
+			prevIdx := (idx - 1 + total) % total
+			nextIdx := (idx + 1) % total
+
+			replyMarkup = &InlineKeyboardMarkup{
+				InlineKeyboard: [][]InlineKeyboardButton{
+					{
+						{Text: "◀️ Prev", CallbackData: fmt.Sprintf("slide:%s:%d", shortcode, prevIdx)},
+						{Text: fmt.Sprintf("%d/%d", idx+1, total), CallbackData: "noop"},
+						{Text: "Next ▶️", CallbackData: fmt.Sprintf("slide:%s:%d", shortcode, nextIdx)},
+					},
+					{
+						{Text: "🔗 Instagram Link", URL: cleanURL},
+					},
+				},
+			}
+		} else {
+			replyMarkup = &InlineKeyboardMarkup{
+				InlineKeyboard: [][]InlineKeyboardButton{
+					{
+						{Text: "🔗 Instagram Link", URL: cleanURL},
+					},
+				},
+			}
+		}
+
 		if item.Type == "image" {
 			results = append(results, InlineQueryResultPhoto{
 				Type:         "photo",
@@ -126,11 +156,7 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 				Title:        itemTitle,
 				Caption:      caption,
 				ParseMode:    "HTML",
-				ReplyMarkup: &InlineKeyboardMarkup{
-					InlineKeyboard: [][]InlineKeyboardButton{
-						{{Text: "🔗 Instagram Link", URL: cleanURL}},
-					},
-				},
+				ReplyMarkup:  replyMarkup,
 			})
 		} else {
 			results = append(results, InlineQueryResultVideo{
@@ -142,11 +168,7 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 				Title:        itemTitle,
 				Caption:      caption,
 				ParseMode:    "HTML",
-				ReplyMarkup: &InlineKeyboardMarkup{
-					InlineKeyboard: [][]InlineKeyboardButton{
-						{{Text: "🔗 Instagram Link", URL: cleanURL}},
-					},
-				},
+				ReplyMarkup:  replyMarkup,
 			})
 		}
 	}
