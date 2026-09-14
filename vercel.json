@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/telegram.go",
+      "use": "@vercel/go",
+      "config": {
+        "maxDuration": 60
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/telegram",
+      "dest": "api/telegram.go"
+    },
+    {
+      "src": "/telegram",
+      "dest": "api/telegram.go"
+    },
+    {
+      "src": "/webhook",
+      "dest": "api/telegram.go"
+    },
+    {
+      "src": "/api",
+      "dest": "api/telegram.go"
+    },
+    {
+      "src": "/",
+      "dest": "api/telegram.go"
+    }
+  ]
+}

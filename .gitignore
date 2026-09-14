@@ -1,0 +1,26 @@
+.env
+.env.*
+!.env.example
+
+# Binaries & build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Temporary files & logs
+*.log
+.tmp/
+temp/
+tmp/
+scratch/
+
+# OS and Editor metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
