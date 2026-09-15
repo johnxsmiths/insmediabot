@@ -26,6 +26,7 @@ type Bot struct {
 	downloader  *media.Downloader
 	rateLimiter *ratelimit.Limiter
 	db          *db.DB
+	dbErr       error
 
 	botUsername     string
 	botName         string
@@ -53,6 +54,7 @@ func NewBot(cfg *config.Config) *Bot {
 		downloader:  downloader,
 		rateLimiter: limiter,
 		db:          database,
+		dbErr:       err,
 	}
 }
 
@@ -747,7 +749,11 @@ func (b *Bot) handleStatsCommand(ctx context.Context, chatID, userID int64) erro
 	}
 
 	if b.db == nil {
-		_, err := b.client.SendMessage(ctx, chatID, "⚠️ <b>MongoDB is not configured or connected.</b>\nPlease set <code>MONGODB_URI</code> in environment variables.", nil)
+		errMsg := "⚠️ <b>MongoDB is not configured or connected.</b>\nPlease set <code>MONGODB_URI</code> in environment variables."
+		if b.dbErr != nil {
+			errMsg = fmt.Sprintf("⚠️ <b>MongoDB Connection Failed:</b>\n<code>%v</code>\n\n<i>Check IP whitelist (allow 0.0.0.0/0 on MongoDB Atlas) and credentials.</i>", b.dbErr)
+		}
+		_, err := b.client.SendMessage(ctx, chatID, errMsg, nil)
 		return err
 	}
 
@@ -865,7 +871,11 @@ func (b *Bot) handleBroadcastCommand(ctx context.Context, msg *Message) error {
 	}
 
 	if b.db == nil {
-		_, err := b.client.SendMessage(ctx, chatID, "⚠️ <b>MongoDB is not configured or connected.</b>\nPlease set <code>MONGODB_URI</code> in environment variables.", nil)
+		errMsg := "⚠️ <b>MongoDB is not configured or connected.</b>\nPlease set <code>MONGODB_URI</code> in environment variables."
+		if b.dbErr != nil {
+			errMsg = fmt.Sprintf("⚠️ <b>MongoDB Connection Failed:</b>\n<code>%v</code>\n\n<i>Check IP whitelist (allow 0.0.0.0/0 on MongoDB Atlas) and credentials.</i>", b.dbErr)
+		}
+		_, err := b.client.SendMessage(ctx, chatID, errMsg, nil)
 		return err
 	}
 
