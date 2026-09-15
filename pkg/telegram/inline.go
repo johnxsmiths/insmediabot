@@ -113,7 +113,7 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 			if item.Type == "image" {
 				thumb = item.URL
 			} else {
-				thumb = igLogoURL // Fallback required by Telegram Bot API for videos
+				thumb = igLogoURL
 			}
 		}
 
@@ -172,6 +172,28 @@ func (b *Bot) handleInlineQuery(ctx context.Context, iq *InlineQuery) error {
 			})
 		}
 	}
+
+	shortcode := resolver.ExtractShortcode(cleanURL)
+	deepLink := fmt.Sprintf("https://t.me/%s?start=dl_%s", botUser, shortcode)
+
+	articleCard := InlineQueryResultArticle{
+		Type:         "article",
+		ID:           "direct_card",
+		Title:        fmt.Sprintf("📥 Send Media via @%s", botUser),
+		Description:  "Tap here to get the high-speed video directly in chat",
+		ThumbnailURL: igLogoURL,
+		InputMessageContent: InputTextMessageContent{
+			MessageText: fmt.Sprintf("✨ <b>Download Ready!</b>\n🔗 <a href=\"%s\">Instagram Post</a>", cleanURL),
+			ParseMode:   "HTML",
+		},
+		ReplyMarkup: &InlineKeyboardMarkup{
+			InlineKeyboard: [][]InlineKeyboardButton{
+				{{Text: "⚡ Download in Bot", URL: deepLink}},
+				{{Text: "🔗 Instagram Link", URL: cleanURL}},
+			},
+		},
+	}
+	results = append([]interface{}{articleCard}, results...)
 
 	return b.client.AnswerInlineQuery(ctx, iq.ID, results, 300)
 }

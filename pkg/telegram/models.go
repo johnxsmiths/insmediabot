@@ -81,11 +81,13 @@ type Chat struct {
 
 // Message represents a message.
 type Message struct {
-	MessageID int64  `json:"message_id"`
-	From      *User  `json:"from,omitempty"`
-	Chat      Chat   `json:"chat"`
-	Date      int64  `json:"date"`
-	Text      string `json:"text,omitempty"`
+	MessageID      int64    `json:"message_id"`
+	From           *User    `json:"from,omitempty"`
+	Chat           Chat     `json:"chat"`
+	Date           int64    `json:"date"`
+	Text           string   `json:"text,omitempty"`
+	Caption        string   `json:"caption,omitempty"`
+	ReplyToMessage *Message `json:"reply_to_message,omitempty"`
 }
 
 // CallbackQuery represents an incoming callback query from an inline keyboard button.

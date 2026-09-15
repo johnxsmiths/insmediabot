@@ -38,6 +38,13 @@ type Config struct {
 
 	// Log / Backup Channel where media/actions are mirrored
 	LogChannelID string
+
+	// MongoDB Configuration
+	MongoDBURI  string
+	MongoDBName string
+
+	// Owner ID(s) authorized for /broadcast and /stats
+	OwnerIDs []int64
 }
 
 // Load reads configuration from the environment and optionally a local .env file.
@@ -68,9 +75,37 @@ func Load() *Config {
 		ForceSubChannel:     getEnv("FORCE_SUB_CHANNEL", ""),
 		ForceSubChannelLink: getEnv("FORCE_SUB_CHANNEL_LINK", ""),
 		LogChannelID:        getEnv("LOG_CHANNEL_ID", ""),
+
+		MongoDBURI:  getEnv("MONGODB_URI", ""),
+		MongoDBName: getEnv("MONGODB_NAME", "slmedia"),
+		OwnerIDs:    parseCommaSeparatedInt64(getEnv("OWNER_ID", "")),
 	}
 
 	return cfg
+}
+
+// IsOwner returns true if the provided userID is in OwnerIDs.
+func (c *Config) IsOwner(userID int64) bool {
+	for _, id := range c.OwnerIDs {
+		if id == userID {
+			return true
+		}
+	}
+	return false
+}
+
+func parseCommaSeparatedInt64(val string) []int64 {
+	parts := strings.Split(val, ",")
+	var result []int64
+	for _, p := range parts {
+		clean := strings.TrimSpace(p)
+		if clean != "" {
+			if id, err := strconv.ParseInt(clean, 10, 64); err == nil {
+				result = append(result, id)
+			}
+		}
+	}
+	return result
 }
 
 func getEnv(key, defaultVal string) string {

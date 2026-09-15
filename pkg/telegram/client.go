@@ -52,6 +52,24 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string, rep
 	return msgResult.MessageID, nil
 }
 
+// CopyMessage copies a message of any type to another chat.
+func (c *Client) CopyMessage(ctx context.Context, toChatID int64, fromChatID int64, messageID int64) (int64, error) {
+	payload := map[string]interface{}{
+		"chat_id":      toChatID,
+		"from_chat_id": fromChatID,
+		"message_id":   messageID,
+	}
+	res, err := c.postJSON(ctx, "/copyMessage", payload)
+	if err != nil {
+		return 0, err
+	}
+	var msgResult struct {
+		MessageID int64 `json:"message_id"`
+	}
+	_ = json.Unmarshal(res.Result, &msgResult)
+	return msgResult.MessageID, nil
+}
+
 // EditMessageText edits existing message text.
 func (c *Client) EditMessageText(ctx context.Context, chatID int64, messageID int64, text string, replyMarkup *InlineKeyboardMarkup) error {
 	payload := map[string]interface{}{

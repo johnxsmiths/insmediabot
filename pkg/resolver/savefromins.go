@@ -10,13 +10,11 @@ import (
 	"time"
 )
 
-// SaveFromInsProvider implements resolver for api.savefromins.com / contentsite_api.
 type SaveFromInsProvider struct {
 	apiURL string
 	client *http.Client
 }
 
-// NewSaveFromInsProvider creates a new SaveFromIns resolver.
 func NewSaveFromInsProvider(apiURL string) *SaveFromInsProvider {
 	if apiURL == "" {
 		apiURL = "https://api.savefromins.com/api/contentsite_api/media/parse"

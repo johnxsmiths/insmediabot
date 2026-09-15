@@ -181,6 +181,43 @@ go run ./cmd/webhook-setup -info
 
 ---
 
+## 👑 Owner Commands (MongoDB Enabled)
+
+If `MONGODB_URI` and `OWNER_ID` are configured in your environment:
+
+### 1. Database Stats (`/stats`)
+Send `/stats` to view real-time statistics:
+- Total unique users in database
+- Active users in the last 24 hours
+- Blocked / deactivated accounts
+- Total messages logged
+- Total downloads processed
+
+### 2. Broadcast to All Users (`/broadcast`)
+Send messages or media to every registered bot user:
+
+- **Text Broadcast**:
+  ```text
+  /broadcast Hello everyone! We have updated the bot.
+  ```
+- **Forward / Media Broadcast**:
+  Send or forward any photo, video, audio, voice note, or sticker to the bot, then **reply** to that message with:
+  ```text
+  /broadcast
+  ```
+### 3. Ban & Unban Users (`/ban` & `/unban`)
+- Ban a user:
+  ```text
+  /ban <user_id> <optional_reason>
+  ```
+- Unban a user:
+  ```text
+  /unban <user_id>
+  ```
+Banned users are blocked from sending links or running commands, and are excluded from broadcasts.
+
+---
+
 ## 🛡️ Security & Safeguards
 
 - **Rate Limiting**: In-memory sliding window protects against spam and runaway function invocations.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"slmedia/pkg/config"
 )
@@ -48,8 +49,11 @@ func (m *Manager) Resolve(ctx context.Context, igURL string) (*MediaResult, erro
 		default:
 		}
 
+		provCtx, provCancel := context.WithTimeout(ctx, 4*time.Second)
 		log.Printf("[Resolver] Trying provider: %s for %s", provider.Name(), igURL)
-		result, err := provider.Resolve(ctx, igURL)
+		result, err := provider.Resolve(provCtx, igURL)
+		provCancel()
+
 		if err == nil && result != nil && len(result.Items) > 0 {
 			log.Printf("[Resolver] Success via provider: %s (found %d item(s))", provider.Name(), len(result.Items))
 			return result, nil
